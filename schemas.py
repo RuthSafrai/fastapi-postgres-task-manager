@@ -1,18 +1,20 @@
 from pydantic import BaseModel, EmailStr
 from typing import Optional
-from datetime import datetime
-
+from datetime import datetime, date
 
 # ---------- Users ----------
 class UserCreate(BaseModel):
     name: str
     email: EmailStr
-
+    role: str = "developer"
+    is_active: bool = True
 
 class UserOut(BaseModel):
     id: int
     name: str
     email: EmailStr
+    role: str
+    is_active: bool
     created_at: datetime
 
     class Config:
@@ -43,7 +45,8 @@ class TaskCreate(BaseModel):
     priority: Optional[str] = "low"
     user_id: Optional[int] = None
     project_id: Optional[int] = None
-
+    due_date: Optional[date] = None
+    estimated_hours: Optional[int] = None
 
 class TaskUpdate(BaseModel):
     title: Optional[str] = None
@@ -52,7 +55,8 @@ class TaskUpdate(BaseModel):
     priority: Optional[str] = None
     user_id: Optional[int] = None
     project_id: Optional[int] = None
-
+    due_date: Optional[date] = None
+    estimated_hours: Optional[int] = None
 
 class TaskOut(BaseModel):
     id: int
@@ -63,6 +67,8 @@ class TaskOut(BaseModel):
     user_id: Optional[int] = None
     project_id: Optional[int] = None
     created_at: datetime
+    due_date: Optional[date] = None
+    estimated_hours: Optional[int] = None
 
     class Config:
         from_attributes = True

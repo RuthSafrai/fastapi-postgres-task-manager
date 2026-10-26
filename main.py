@@ -22,7 +22,10 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     existing = db.query(models.User).filter(models.User.email == user.email).first()
     if existing:
         raise HTTPException(status_code=400, detail="האימייל כבר קיים")
-    new_user = models.User(name=user.name, email=user.email)
+    new_user = models.User(  name=user.name,
+    email=user.email,
+    role=user.role,
+    is_active=user.is_active,)
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
