@@ -8,6 +8,9 @@ class UserCreate(BaseModel):
     email: EmailStr
     role: str = "developer"
     is_active: bool = True
+    userName: str
+    password: str
+
 
 class UserOut(BaseModel):
     id: int
@@ -16,10 +19,14 @@ class UserOut(BaseModel):
     role: str
     is_active: bool
     created_at: datetime
+    userName: Optional[str] = None
 
     class Config:
         from_attributes = True
 
+class UserResponse (BaseModel):
+    id: int
+    username: str
 
 # ---------- Projects ----------
 class ProjectCreate(BaseModel):

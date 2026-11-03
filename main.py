@@ -1,8 +1,9 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from database import SessionLocal, engine, Base
 import models
 import schemas
+from security import hash_password
 
 app = FastAPI(title="מערכת ניהול משימות")
 
@@ -17,15 +18,19 @@ def get_db():
 
 
 # ---------- Users ----------
-@app.post("/users", response_model=schemas.UserOut)
+@app.post("/users",response_model=schemas.UserOut,status_code=status.HTTP_201_CREATED)
 def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     existing = db.query(models.User).filter(models.User.email == user.email).first()
     if existing:
         raise HTTPException(status_code=400, detail="האימייל כבר קיים")
-    new_user = models.User(  name=user.name,
-    email=user.email,
-    role=user.role,
-    is_active=user.is_active,)
+    new_user = models.User(
+        name=user.name,
+        email=user.email,
+        role=user.role,
+        is_active=user.is_active,
+        userName=user.userName,
+        password=hash_password(user.password),
+    )
     db.add(new_user)
     db.commit()
     db.refresh(new_user)

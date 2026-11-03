@@ -13,6 +13,8 @@ class User(Base):
     created_at = Column(DateTime, server_default=func.now())
     role = Column(String, nullable=False, server_default="developer")
     is_active = Column(Boolean, server_default=expression.true())
+    userName = Column(String, nullable=True)
+    password = Column(String, nullable=True)
 
     tasks = relationship("Task", back_populates="user")
     comments = relationship("Comment", back_populates="user")
