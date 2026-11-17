@@ -2,6 +2,7 @@ from pydantic import BaseModel, EmailStr
 from typing import Optional
 from datetime import datetime, date
 
+
 # ---------- Users ----------
 class UserCreate(BaseModel):
     name: str
@@ -79,3 +80,9 @@ class TaskOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str = "bearer"

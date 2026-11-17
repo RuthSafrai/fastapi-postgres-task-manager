@@ -4,6 +4,7 @@ from database import SessionLocal, engine, Base
 import models
 import schemas
 from security import hash_password
+import auth
 
 app = FastAPI(title="מערכת ניהול משימות")
 
@@ -58,3 +59,5 @@ def delete_user(user_id: int, db: Session = Depends(get_db)):
     db.delete(user)
     db.commit()
     return {"message": "המשתמש נמחק"}
+
+app.include_router(auth.router)
