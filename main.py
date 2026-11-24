@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-
+from enums import TaskStatus, TaskPriority
 import auth
 import models
 import schemas
@@ -94,16 +94,16 @@ def create_task(task: schemas.TaskCreate, db: Session = Depends(get_db)):
 @app.get("/tasks", response_model=list[schemas.TaskOut])
 def get_tasks(
     db: Session = Depends(get_db),
-    status_filter: str | None = None,
-    priority: str | None = None,
+    status_filter: TaskStatus | None = None,
+    priority: TaskPriority | None = None,
     user_id: int | None = None,
     project_id: int | None = None,
 ):
     query = db.query(models.Task)
     if status_filter is not None:
-        query = query.filter(models.Task.status == status_filter)
+        query = query.filter(models.Task.status == status_filter.value)
     if priority is not None:
-        query = query.filter(models.Task.priority == priority)
+        query = query.filter(models.Task.priority == priority.value)
     if user_id is not None:
         query = query.filter(models.Task.user_id == user_id)
     if project_id is not None:

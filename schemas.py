@@ -1,4 +1,5 @@
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+from enums import TaskStatus, TaskPriority
 from typing import Optional
 from datetime import datetime, date
 
@@ -50,24 +51,27 @@ class ProjectOut(BaseModel):
 class TaskCreate(BaseModel):
     title: str = Field(min_length=1)
     description: Optional[str] = None
-    status: Optional[str] = "todo"
-    priority: Optional[str] = "low"
+    status: TaskStatus = TaskStatus.todo
+    priority: TaskPriority = TaskPriority.low
     user_id: Optional[int] = None
     project_id: Optional[int] = None
     due_date: date
     estimated_hours: int = Field(gt=0)
 
+    # use_enum_values: ב-model_dump() מקבלים מחרוזת ("todo") ולא אובייקט Enum
+    model_config = ConfigDict(use_enum_values=True)
 
 class TaskUpdate(BaseModel):
     title: Optional[str] = Field(default=None, min_length=1)
     description: Optional[str] = None
-    status: Optional[str] = None
-    priority: Optional[str] = None
+    status: Optional[TaskStatus] = None
+    priority: Optional[TaskPriority] = None
     user_id: Optional[int] = None
     project_id: Optional[int] = None
     due_date: Optional[date] = None
     estimated_hours: Optional[int] = Field(default=None, gt=0)
 
+    model_config = ConfigDict(use_enum_values=True)
     # שדות NOT NULL במסד: אפשר לא לשלוח אותם, אבל אי אפשר לשלוח null
     @field_validator("title", "status", "priority", "due_date", "estimated_hours")
     @classmethod
@@ -81,8 +85,8 @@ class TaskOut(BaseModel):
     id: int
     title: str
     description: Optional[str] = None
-    status: str
-    priority: str
+    status: TaskStatus
+    priority: TaskPriority
     user_id: Optional[int] = None
     project_id: Optional[int] = None
     created_at: datetime
