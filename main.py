@@ -1,16 +1,27 @@
 from fastapi import FastAPI, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
-from enums import TaskStatus, TaskPriority
+
 import auth
 import models
 import schemas
+from auth import get_current_user, require_roles
 from database import get_db
+from enums import Role, TaskStatus, TaskPriority
+from permissions import (
+    can_read_all,
+    ensure_can_read_task,
+    ensure_can_write_task,
+    forbidden,
+    is_admin,
+)
 from security import hash_password
 app = FastAPI(title="מערכת ניהול משימות")
 
 
 # ---------- Users ----------
-@app.post("/users",response_model=schemas.UserOut,status_code=status.HTTP_201_CREATED)
+@app.post("/users",response_model=schemas.UserOut,status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_roles(Role.admin))],
+)
 def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     existing = db.query(models.User).filter(models.User.email == user.email).first()
     if existing:
@@ -37,21 +48,30 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
 @app.get("/users", response_model=list[schemas.UserOut])
 def get_users(
     db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
 ):
-    return db.query(models.User).order_by(models.User.id).offset(skip).limit(limit).all()
+    query = db.query(models.User)
+    if not can_read_all(current_user):
+        query = query.filter(models.User.id == current_user.id)
+    return query.order_by(models.User.id).offset(skip).limit(limit).all()
 
 
 @app.get("/users/{user_id}", response_model=schemas.UserOut)
-def get_user(user_id: int, db: Session = Depends(get_db)):
+def get_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    if not can_read_all(current_user) and user_id != current_user.id:
+        raise forbidden()
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="המשתמש לא נמצא")
     return user
 
-
-@app.delete("/users/{user_id}")
+@app.delete("/users/{user_id}", dependencies=[Depends(require_roles(Role.admin))])
 def delete_user(user_id: int, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if not user:
@@ -71,7 +91,9 @@ def delete_user(user_id: int, db: Session = Depends(get_db)):
 
 
 # ---------- Projects ----------
-@app.post("/projects", response_model=schemas.ProjectOut, status_code=status.HTTP_201_CREATED)
+@app.post("/projects", response_model=schemas.ProjectOut, status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_roles(Role.admin))],
+)
 def create_project(project: schemas.ProjectCreate, db: Session = Depends(get_db)):
     new_project = models.Project(**project.model_dump())
     db.add(new_project)
@@ -83,24 +105,39 @@ def create_project(project: schemas.ProjectCreate, db: Session = Depends(get_db)
 @app.get("/projects", response_model=list[schemas.ProjectOut])
 def get_projects(
     db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
 ):
-    return (
-        db.query(models.Project)
-        .order_by(models.Project.id)
-        .offset(skip)
-        .limit(limit)
-        .all()
-    )
+    query = db.query(models.Project)
+    if not can_read_all(current_user):
+        # משתמש רגיל רואה רק פרויקטים שיש בהם משימה שלו
+        query = query.filter(
+            models.Project.tasks.any(models.Task.user_id == current_user.id)
+        )
+    return query.order_by(models.Project.id).offset(skip).limit(limit).all()
 
 @app.get("/projects/{project_id}", response_model=schemas.ProjectOut)
-def get_project(project_id: int, db: Session = Depends(get_db)):
+def get_project(
+    project_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
     project = db.query(models.Project).filter(models.Project.id == project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="הפרויקט לא נמצא")
+    if not can_read_all(current_user):
+        has_task = (
+            db.query(models.Task)
+            .filter(
+                models.Task.project_id == project_id,
+                models.Task.user_id == current_user.id,
+            )
+            .first()
+        )
+        if not has_task:
+            raise forbidden()
     return project
-
 
 # ---------- Tasks ----------
 @app.post("/tasks", response_model=schemas.TaskOut, status_code=status.HTTP_201_CREATED)

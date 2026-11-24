@@ -1,5 +1,5 @@
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
-from enums import TaskStatus, TaskPriority
+from enums import Role, TaskStatus, TaskPriority
 from typing import Optional
 from datetime import datetime, date
 
@@ -8,7 +8,7 @@ from datetime import datetime, date
 class UserCreate(BaseModel):
     name: str
     email: EmailStr
-    role: str = "developer"
+    role: Role = Role.developer
     is_active: bool = True
     username: str = Field(min_length=1)
     password: str
@@ -110,3 +110,4 @@ class CommentOut(BaseModel):
 
     class Config:
         from_attributes = True
+
