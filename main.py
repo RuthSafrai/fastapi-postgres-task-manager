@@ -141,23 +141,37 @@ def get_project(
 
 # ---------- Tasks ----------
 @app.post("/tasks", response_model=schemas.TaskOut, status_code=status.HTTP_201_CREATED)
-def create_task(task: schemas.TaskCreate, db: Session = Depends(get_db)):
+def create_task(
+    task: schemas.TaskCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    if current_user.role == Role.secretary:
+        raise forbidden()
+
+    data = task.model_dump()
+    if not is_admin(current_user):
+        # משתמש רגיל יוצר משימות רק לעצמו
+        if data["user_id"] not in (None, current_user.id):
+            raise forbidden()
+        data["user_id"] = current_user.id
+
     # בדיקת קיום הישויות המקושרות לפני יצירה
-    if task.user_id is not None and not db.get(models.User, task.user_id):
+    if data["user_id"] is not None and not db.get(models.User, data["user_id"]):
         raise HTTPException(status_code=404, detail="המשתמש לא נמצא")
-    if task.project_id is not None and not db.get(models.Project, task.project_id):
+    if data["project_id"] is not None and not db.get(models.Project, data["project_id"]):
         raise HTTPException(status_code=404, detail="הפרויקט לא נמצא")
 
-    new_task = models.Task(**task.model_dump())
+    new_task = models.Task(**data)
     db.add(new_task)
     db.commit()
     db.refresh(new_task)
     return new_task
 
-
 @app.get("/tasks", response_model=list[schemas.TaskOut])
 def get_tasks(
     db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
     status_filter: TaskStatus | None = None,
     priority: TaskPriority | None = None,
     user_id: int | None = None,
@@ -166,6 +180,8 @@ def get_tasks(
     limit: int = Query(20, ge=1, le=100),
 ):
     query = db.query(models.Task)
+    if not can_read_all(current_user):
+        query = query.filter(models.Task.user_id == current_user.id)
     if status_filter is not None:
         query = query.filter(models.Task.status == status_filter.value)
     if priority is not None:
@@ -177,20 +193,34 @@ def get_tasks(
     return query.order_by(models.Task.id).offset(skip).limit(limit).all()
 
 @app.get("/tasks/{task_id}", response_model=schemas.TaskOut)
-def get_task(task_id: int, db: Session = Depends(get_db)):
+def get_task(
+    task_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
     task = db.query(models.Task).filter(models.Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="המשימה לא נמצאה")
+    ensure_can_read_task(task, current_user)
     return task
 
 
 @app.put("/tasks/{task_id}", response_model=schemas.TaskOut)
-def update_task(task_id: int, task_in: schemas.TaskUpdate, db: Session = Depends(get_db)):
+def update_task(
+    task_id: int,
+    task_in: schemas.TaskUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
     task = db.query(models.Task).filter(models.Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="המשימה לא נמצאה")
+    ensure_can_write_task(task, current_user)
 
     data = task_in.model_dump(exclude_unset=True)
+    # רק מנהל יכול להעביר משימה למשתמש אחר
+    if "user_id" in data and not is_admin(current_user) and data["user_id"] != current_user.id:
+        raise forbidden()
     if "user_id" in data and data["user_id"] is not None and not db.get(models.User, data["user_id"]):
         raise HTTPException(status_code=404, detail="המשתמש לא נמצא")
     if "project_id" in data and data["project_id"] is not None and not db.get(models.Project, data["project_id"]):
@@ -205,14 +235,18 @@ def update_task(task_id: int, task_in: schemas.TaskUpdate, db: Session = Depends
 
 
 @app.delete("/tasks/{task_id}")
-def delete_task(task_id: int, db: Session = Depends(get_db)):
+def delete_task(
+    task_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
     task = db.query(models.Task).filter(models.Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="המשימה לא נמצאה")
+    ensure_can_write_task(task, current_user)
     db.delete(task)
     db.commit()
     return {"message": "המשימה נמחקה"}
-
 
 # ---------- Comments ----------
 @app.post("/tasks/{task_id}/comments", response_model=schemas.CommentOut, status_code=status.HTTP_201_CREATED)
