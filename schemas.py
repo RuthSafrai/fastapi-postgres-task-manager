@@ -9,8 +9,10 @@ class UserCreate(BaseModel):
     email: EmailStr
     role: str = "developer"
     is_active: bool = True
-    userName: str
+    userName: Optional[str] = None
     password: str
+    due_date: date
+    estimated_hours: int
 
 
 class UserOut(BaseModel):
@@ -86,3 +88,18 @@ class TaskOut(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
+# ---------- Comments ----------
+class CommentCreate(BaseModel):
+    content: str
+    user_id: int
+
+
+class CommentOut(BaseModel):
+    id: int
+    content: str
+    task_id: int
+    user_id: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
