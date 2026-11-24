@@ -13,12 +13,12 @@ class User(Base):
     created_at = Column(DateTime, server_default=func.now())
     role = Column(String, nullable=False, server_default="developer")
     is_active = Column(Boolean, server_default=expression.true())
-    userName = Column(String, nullable=True)
+    username = Column(String, unique=True, nullable=False, index=True)
     password = Column(String, nullable=True)
-
     tasks = relationship("Task", back_populates="user")
-    comments = relationship("Comment", back_populates="user")
-
+    comments = relationship(
+        "Comment", back_populates="task", cascade="all, delete-orphan"
+    )
 
 class Project(Base):
     __tablename__ = "projects"
@@ -48,12 +48,13 @@ class Task(Base):
     user = relationship("User", back_populates="tasks")
     project = relationship("Project", back_populates="tasks")
     comments = relationship("Comment", back_populates="task")
+
 class Comment(Base):
     __tablename__ = "comments"
 
     id = Column(Integer, primary_key=True, index=True)
     content = Column(Text, nullable=False)
-    task_id = Column(Integer, ForeignKey("tasks.id"), nullable=False)
+    task_id = Column(Integer, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, server_default=func.now())
 

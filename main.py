@@ -15,12 +15,17 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     existing = db.query(models.User).filter(models.User.email == user.email).first()
     if existing:
         raise HTTPException(status_code=400, detail="האימייל כבר קיים")
+    existing_username = (
+        db.query(models.User).filter(models.User.username == user.username).first()
+    )
+    if existing_username:
+        raise HTTPException(status_code=400, detail="שם המשתמש כבר קיים")
     new_user = models.User(
         name=user.name,
         email=user.email,
         role=user.role,
         is_active=user.is_active,
-        userName=user.userName,
+        username=user.username,
         password=hash_password(user.password),
     )
     db.add(new_user)
@@ -47,6 +52,15 @@ def delete_user(user_id: int, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="המשתמש לא נמצא")
+    has_tasks = db.query(models.Task).filter(models.Task.user_id == user_id).first()
+    has_comments = (
+        db.query(models.Comment).filter(models.Comment.user_id == user_id).first()
+    )
+    if has_tasks or has_comments:
+        raise HTTPException(
+            status_code=409,
+            detail="לא ניתן למחוק משתמש שיש לו משימות או תגובות",
+        )
     db.delete(user)
     db.commit()
     return {"message": "המשתמש נמחק"}

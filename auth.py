@@ -22,11 +22,10 @@ def login(
         db.query(User)
         .filter(
             or_(
-                User.userName == username,
+                User.username == username,
                 User.email == username,
             )
         )
-        .order_by(User.id.desc())   # האחרון שנרשם, לא שרירותי
         .first()
     )
 

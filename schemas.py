@@ -10,7 +10,7 @@ class UserCreate(BaseModel):
     email: EmailStr
     role: str = "developer"
     is_active: bool = True
-    userName: Optional[str] = None
+    username: str = Field(min_length=1)
     password: str
 
 
@@ -22,14 +22,10 @@ class UserOut(BaseModel):
     role: str
     is_active: bool
     created_at: datetime
-    userName: Optional[str] = None
+    username: str
 
     class Config:
         from_attributes = True
-
-class UserResponse (BaseModel):
-    id: int
-    username: str
 
 # ---------- Projects ----------
 class ProjectCreate(BaseModel):
