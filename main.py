@@ -250,14 +250,20 @@ def delete_task(
 
 # ---------- Comments ----------
 @app.post("/tasks/{task_id}/comments", response_model=schemas.CommentOut, status_code=status.HTTP_201_CREATED)
-def create_comment(task_id: int, comment: schemas.CommentCreate, db: Session = Depends(get_db)):
-    if not db.get(models.Task, task_id):
+def create_comment(
+    task_id: int,
+    comment: schemas.CommentCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    task = db.get(models.Task, task_id)
+    if not task:
         raise HTTPException(status_code=404, detail="המשימה לא נמצאה")
-    if not db.get(models.User, comment.user_id):
-        raise HTTPException(status_code=404, detail="המשתמש לא נמצא")
+    ensure_can_write_task(task, current_user)
 
+    # המחבר הוא תמיד המשתמש המחובר, לא ערך שהלקוח שולח
     new_comment = models.Comment(
-        content=comment.content, task_id=task_id, user_id=comment.user_id
+        content=comment.content, task_id=task_id, user_id=current_user.id
     )
     db.add(new_comment)
     db.commit()
@@ -269,11 +275,14 @@ def create_comment(task_id: int, comment: schemas.CommentCreate, db: Session = D
 def get_task_comments(
     task_id: int,
     db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
 ):
-    if not db.get(models.Task, task_id):
+    task = db.get(models.Task, task_id)
+    if not task:
         raise HTTPException(status_code=404, detail="המשימה לא נמצאה")
+    ensure_can_read_task(task, current_user)
     return (
         db.query(models.Comment)
         .filter(models.Comment.task_id == task_id)

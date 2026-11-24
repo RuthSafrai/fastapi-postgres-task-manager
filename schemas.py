@@ -98,8 +98,6 @@ class Token(BaseModel):
 # ---------- Comments ----------
 class CommentCreate(BaseModel):
     content: str
-    user_id: int
-
 
 class CommentOut(BaseModel):
     id: int
