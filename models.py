@@ -15,10 +15,9 @@ class User(Base):
     is_active = Column(Boolean, server_default=expression.true())
     username = Column(String, unique=True, nullable=False, index=True)
     password = Column(String, nullable=True)
+
     tasks = relationship("Task", back_populates="user")
-    comments = relationship(
-        "Comment", back_populates="task", cascade="all, delete-orphan"
-    )
+    comments = relationship("Comment", back_populates="user")
 
 class Project(Base):
     __tablename__ = "projects"
@@ -47,7 +46,10 @@ class Task(Base):
 
     user = relationship("User", back_populates="tasks")
     project = relationship("Project", back_populates="tasks")
-    comments = relationship("Comment", back_populates="task")
+    comments = relationship(
+        "Comment", back_populates="task", cascade="all, delete-orphan"
+    )
+
 
 class Comment(Base):
     __tablename__ = "comments"
