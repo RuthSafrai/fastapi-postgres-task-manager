@@ -1,21 +1,12 @@
 from fastapi import FastAPI, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from database import SessionLocal, engine, Base
+
+import auth
 import models
 import schemas
+from database import get_db
 from security import hash_password
-import auth
-
 app = FastAPI(title="מערכת ניהול משימות")
-
-
-# תלות: פותחת סשן לכל בקשה וסוגרת בסיומה
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 
 # ---------- Users ----------
