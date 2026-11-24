@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from typing import Optional
 from datetime import datetime, date
 
@@ -11,8 +11,7 @@ class UserCreate(BaseModel):
     is_active: bool = True
     userName: Optional[str] = None
     password: str
-    due_date: date
-    estimated_hours: int
+
 
 
 class UserOut(BaseModel):
@@ -49,24 +48,34 @@ class ProjectOut(BaseModel):
 
 # ---------- Tasks ----------
 class TaskCreate(BaseModel):
-    title: str
+    title: str = Field(min_length=1)
     description: Optional[str] = None
     status: Optional[str] = "todo"
     priority: Optional[str] = "low"
     user_id: Optional[int] = None
     project_id: Optional[int] = None
-    due_date: Optional[date] = None
-    estimated_hours: Optional[int] = None
+    due_date: date
+    estimated_hours: int = Field(gt=0)
+
 
 class TaskUpdate(BaseModel):
-    title: Optional[str] = None
+    title: Optional[str] = Field(default=None, min_length=1)
     description: Optional[str] = None
     status: Optional[str] = None
     priority: Optional[str] = None
     user_id: Optional[int] = None
     project_id: Optional[int] = None
     due_date: Optional[date] = None
-    estimated_hours: Optional[int] = None
+    estimated_hours: Optional[int] = Field(default=None, gt=0)
+
+    # שדות NOT NULL במסד: אפשר לא לשלוח אותם, אבל אי אפשר לשלוח null
+    @field_validator("title", "status", "priority", "due_date", "estimated_hours")
+    @classmethod
+    def not_null(cls, value):
+        if value is None:
+            raise ValueError("השדה לא יכול להיות null")
+        return value
+
 
 class TaskOut(BaseModel):
     id: int
@@ -77,13 +86,11 @@ class TaskOut(BaseModel):
     user_id: Optional[int] = None
     project_id: Optional[int] = None
     created_at: datetime
-    due_date: Optional[date] = None
-    estimated_hours: Optional[int] = None
+    due_date: date
+    estimated_hours: int
 
     class Config:
         from_attributes = True
-
-
 
 class Token(BaseModel):
     access_token: str
