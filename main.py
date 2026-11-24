@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from enums import TaskStatus, TaskPriority
 import auth
@@ -35,8 +35,12 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
 
 
 @app.get("/users", response_model=list[schemas.UserOut])
-def get_users(db: Session = Depends(get_db)):
-    return db.query(models.User).all()
+def get_users(
+    db: Session = Depends(get_db),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=100),
+):
+    return db.query(models.User).order_by(models.User.id).offset(skip).limit(limit).all()
 
 
 @app.get("/users/{user_id}", response_model=schemas.UserOut)
@@ -77,9 +81,18 @@ def create_project(project: schemas.ProjectCreate, db: Session = Depends(get_db)
 
 
 @app.get("/projects", response_model=list[schemas.ProjectOut])
-def get_projects(db: Session = Depends(get_db)):
-    return db.query(models.Project).all()
-
+def get_projects(
+    db: Session = Depends(get_db),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=100),
+):
+    return (
+        db.query(models.Project)
+        .order_by(models.Project.id)
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
 
 @app.get("/projects/{project_id}", response_model=schemas.ProjectOut)
 def get_project(project_id: int, db: Session = Depends(get_db)):
@@ -112,6 +125,8 @@ def get_tasks(
     priority: TaskPriority | None = None,
     user_id: int | None = None,
     project_id: int | None = None,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=100),
 ):
     query = db.query(models.Task)
     if status_filter is not None:
@@ -122,8 +137,7 @@ def get_tasks(
         query = query.filter(models.Task.user_id == user_id)
     if project_id is not None:
         query = query.filter(models.Task.project_id == project_id)
-    return query.all()
-
+    return query.order_by(models.Task.id).offset(skip).limit(limit).all()
 
 @app.get("/tasks/{task_id}", response_model=schemas.TaskOut)
 def get_task(task_id: int, db: Session = Depends(get_db)):
@@ -181,13 +195,20 @@ def create_comment(task_id: int, comment: schemas.CommentCreate, db: Session = D
 
 
 @app.get("/tasks/{task_id}/comments", response_model=list[schemas.CommentOut])
-def get_task_comments(task_id: int, db: Session = Depends(get_db)):
+def get_task_comments(
+    task_id: int,
+    db: Session = Depends(get_db),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=100),
+):
     if not db.get(models.Task, task_id):
         raise HTTPException(status_code=404, detail="המשימה לא נמצאה")
     return (
         db.query(models.Comment)
         .filter(models.Comment.task_id == task_id)
-        .order_by(models.Comment.created_at.asc())
+        .order_by(models.Comment.created_at.asc(), models.Comment.id.asc())
+        .offset(skip)
+        .limit(limit)
         .all()
     )
 
